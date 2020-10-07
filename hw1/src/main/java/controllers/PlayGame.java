@@ -1,8 +1,13 @@
 package controllers;
 
+import com.google.gson.Gson;
 import io.javalin.Javalin;
 import java.io.IOException;
 import java.util.Queue;
+import models.GameBoard;
+import models.Message;
+import models.Move;
+import models.Player;
 import org.eclipse.jetty.websocket.api.Session;
 
 class PlayGame {
@@ -25,25 +30,58 @@ class PlayGame {
       ctx.result(ctx.body());
     });
 
-    /**
-     * Please add your end points here.
-     * 
-     * 
-     * 
-     * 
-     * Please add your end points here.
-     * 
-     * 
-     * 
-     * 
-     * Please add your end points here.
-     * 
-     * 
-     * 
-     * 
-     * Please add your end points here.
-     * 
-     */
+    GameBoard gameBoard = new GameBoard();
+    
+    app.get("/newgame", ctx -> {
+      gameBoard.startOver();
+      ctx.redirect("/tictactoe.html");
+    });
+    
+    app.post("/startgame", ctx -> {
+      String type = ctx.formParam("type");
+      if (type.equals("X")) {
+        gameBoard.setPlayer1('X');
+      } else {
+        gameBoard.setPlayer1('O');
+      }
+      Gson gson = new Gson();
+      ctx.result(gson.toJson(gameBoard));
+    });
+    
+    app.get("/joingame", ctx -> {
+      if (gameBoard.getPlayer1().getType() == 'X') {
+        gameBoard.setPlayer2('O');
+      } else {
+        gameBoard.setPlayer2('X');
+      }
+      gameBoard.startGame();
+      Gson gson = new Gson();
+      sendGameBoardToAllPlayers(gson.toJson(gameBoard));
+      ctx.redirect("/tictactoe.html?p=2");
+    });
+    
+    app.post("/move/:playerId", ctx -> {
+      int id = Integer.parseInt(ctx.pathParam("playerId"));
+      int x = Integer.parseInt(ctx.formParam("x"));
+      int y = Integer.parseInt(ctx.formParam("y"));
+      Player player;
+      if (id == 1) {
+        player = gameBoard.getPlayer1();
+      } else {
+        player = gameBoard.getPlayer2();
+      }
+      Move move = new Move(player, x, y);
+      boolean result = gameBoard.tryMove(move);
+      Message msg;
+      if (result) {
+        msg = new Message(true, 100, "");
+      } else {
+        msg = new Message(false, 100, "Invalid move");
+      }
+      Gson gson = new Gson();
+      ctx.result(gson.toJson(msg));
+      sendGameBoardToAllPlayers(gson.toJson(gameBoard));
+    });
 
     // Web sockets - DO NOT DELETE or CHANGE
     app.ws("/gameboard", new UiWebSocket());
@@ -60,6 +98,7 @@ class PlayGame {
         sessionPlayer.getRemote().sendString(gameBoardJson);
       } catch (IOException e) {
         // Add logger here
+        System.out.println("Error with sending to players.");
       }
     }
   }
