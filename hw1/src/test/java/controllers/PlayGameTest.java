@@ -1,26 +1,27 @@
 package controllers;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.google.gson.Gson;
+import java.util.concurrent.TimeUnit;
+import kong.unirest.HttpResponse;
+import kong.unirest.Unirest;
+import kong.unirest.json.JSONObject;
+import models.GameBoard;
+import models.Player;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
-import kong.unirest.HttpResponse;
-import kong.unirest.*;
-import kong.unirest.json.JSONObject;
-import models.GameBoard;
-import com.google.gson.Gson;
-import models.Player;
-import models.Message;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 
 @TestMethodOrder(OrderAnnotation.class) 
 public class PlayGameTest {
-	
+
   /**
    * Runs only once before the testing starts.
   */
@@ -30,7 +31,7 @@ public class PlayGameTest {
     PlayGame.main(null);
     System.out.println("Before All");
   }
-	
+
   /**
   * This method starts a new game before every test run. It will run every time before a test.
   */
@@ -40,24 +41,24 @@ public class PlayGameTest {
     // If you do not wish to have this end point, it is okay to not have anything in this method.
     HttpResponse<String> response = Unirest.get("http://localhost:8080/").asString();
     int restStatus = response.getStatus();
-    assertEquals(restStatus, 200);
+    assertEquals(404, restStatus);
     System.out.println("Before Each");
   }
-	
+
   /**
   * This is a test case to evaluate the newgame endpoint.
   */
   @Test
   @Order(1)
   public void newGameTest() {
-  	
+  
     // Create HTTP request and get response
     HttpResponse<String> response = Unirest.get("http://localhost:8080/newgame").asString();
     int restStatus = response.getStatus();
-        
+      
     // Check assert statement (New Game has started)
     assertEquals(restStatus, 200);
-    System.out.println("Test New Game");
+    System.out.println("Test New Game " + restStatus);
   }
     
   /**
@@ -66,7 +67,7 @@ public class PlayGameTest {
   @Test
   @Order(2)
   public void startGameTest() {
-    	
+
     // Create a POST request to startgame endpoint and get the body
     // Remember to use asString() only once for an endpoint call. 
     // Every time you call asString(), a new request will be sent to the endpoint. 
@@ -136,6 +137,22 @@ public class PlayGameTest {
     JSONObject jsonObject2 = new JSONObject(rb2);
     assertEquals(false, jsonObject2.get("moveValidity"));
     assertEquals(100, jsonObject2.get("code")); 
+    System.out.println("Test Move");
+    
+    PlayGame.stop();
+    try {
+      // give time to start over
+      TimeUnit.SECONDS.sleep(2);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+    PlayGame.main(null); // start the server again
+    HttpResponse<String> r3 = Unirest.post("http://localhost:8080/move/1").body("x=0&y=1").asString();
+    String rb3 = r3.getBody();
+    System.out.println("Move Response: " + rb3);
+    JSONObject jsonObject3 = new JSONObject(rb3);
+    assertEquals(true, jsonObject3.get("moveValidity"));
+    assertEquals(100, jsonObject3.get("code")); 
     System.out.println("Test Move");
   }
   

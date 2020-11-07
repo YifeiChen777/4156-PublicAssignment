@@ -1,5 +1,8 @@
 package models;
 
+import java.sql.Connection;
+import utils.DatabaseLite;
+
 public class GameBoard {
 
   private Player p1;
@@ -24,15 +27,68 @@ public class GameBoard {
     this.p2 = null;
     this.gameStarted = false;
     this.turn = 0;
-    this.boardState = new char[3][3];
     this.winner = 0;
     this.isDraw = false;
+    this.boardState = new char[3][3];
+  }
+  
+  private void extractBoard(char[][] b) {
+    int c1 = 0;
+    int c2 = 0;
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        char t = b[i][j];
+        this.boardState[i][j] = t;
+        if (t == this.p1.getType()) {
+          c1++;
+        } else {
+          c2++;
+        }
+      }
+    }
+    
+    if (c1 > c2) {
+      this.turn = 2;
+    } else {
+      this.turn = 1;
+    }
+  }
+  
+  /**
+   * Constructor.
+   * @param connect connection to database
+   * @param db database
+   */
+  public GameBoard(Connection connect, DatabaseLite db) {
+    this.boardState = new char[3][3];
+    this.p1 = null;
+    this.p2 = null;
+    this.gameStarted = false;
+    this.turn = 0;
+    this.winner = 0;
+    this.isDraw = false;
+    db.createStateTable(connect);
+    if (db.getBoard(connect) != null) {
+      char[][] b = db.getBoard(connect);
+      char t1 = b[3][0];
+      this.setPlayer1(t1);
+      if (t1 == 'X') {
+        this.setPlayer2('O');
+      } else {
+        this.setPlayer2('X');
+      }
+      this.extractBoard(b);
+      this.gameStarted = true;
+      this.checkWin();
+    }
   }
   
   /**
    * To start a new game.
+   * @param connect connection to database
+   * @param db database
    */
-  public void startOver() {
+  public void startOver(Connection connect, DatabaseLite db) {
     this.p1 = null;
     this.p2 = null;
     this.gameStarted = false;
@@ -40,6 +96,8 @@ public class GameBoard {
     this.boardState = new char[3][3];
     this.winner = 0;
     this.isDraw = false;
+    db.dropTable(connect, "GAMEBOARD");
+    db.createStateTable(connect);
   }
   
   /**
@@ -105,7 +163,7 @@ public class GameBoard {
   public int getTurn() {
     return this.turn;
   }
-  
+ 
   /**
    * get if the game is draw.
    * @return if is draw
@@ -186,7 +244,7 @@ public class GameBoard {
     
     // check if draw
     for (int i = 0; i < this.boardState.length; i++) { 
-      for (int j = 1; j < this.boardState[0].length; j++) {
+      for (int j = 0; j < this.boardState[0].length; j++) {
         if (this.boardState[i][j] == 0) {
           return false;
         }
@@ -199,10 +257,12 @@ public class GameBoard {
   }
   
   /** Try if the move is valid, if so move.
+   * @param connect Connection to the database
+   * @param db database
    * @param move The move we want to try.
    * @return Whether the move is valid.
    */
-  public boolean tryMove(Move move) {
+  public boolean tryMove(Move move, Connection connect, DatabaseLite db) {
     if (this.winner != 0 || this.isDraw == true) {
       return false;
     }
@@ -219,6 +279,7 @@ public class GameBoard {
     } else {
       return false;
     }  
+    
     this.checkWin();
     
     if (this.turn == 1) {
@@ -226,6 +287,7 @@ public class GameBoard {
     } else {
       this.turn = 1;
     }
+    db.addMoveData(connect, move);
     return true;
   }
 }

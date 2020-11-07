@@ -3,12 +3,14 @@ package controllers;
 import com.google.gson.Gson;
 import io.javalin.Javalin;
 import java.io.IOException;
+import java.sql.Connection;
 import java.util.Queue;
 import models.GameBoard;
 import models.Message;
 import models.Move;
 import models.Player;
 import org.eclipse.jetty.websocket.api.Session;
+import utils.DatabaseLite;
 
 class PlayGame {
 
@@ -29,11 +31,14 @@ class PlayGame {
     app.post("/echo", ctx -> {
       ctx.result(ctx.body());
     });
+    
+    DatabaseLite db = new DatabaseLite();
+    Connection connect = db.createConnection(); 
 
-    GameBoard gameBoard = new GameBoard();
+    GameBoard gameBoard = new GameBoard(connect, db);
     
     app.get("/newgame", ctx -> {
-      gameBoard.startOver();
+      gameBoard.startOver(connect, db);
       ctx.redirect("/tictactoe.html");
     });
     
@@ -71,7 +76,7 @@ class PlayGame {
         player = gameBoard.getPlayer2();
       }
       Move move = new Move(player, x, y);
-      boolean result = gameBoard.tryMove(move);
+      boolean result = gameBoard.tryMove(move, connect, db);
       Message msg;
       if (result) {
         msg = new Message(true, 100, "");
